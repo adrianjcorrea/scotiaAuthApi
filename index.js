@@ -1,122 +1,124 @@
+
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt-nodejs');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
-app.use(bodyParser.json());
 const database = {
  users: [
    {
-     id: '123',
-     name: 'John',
-     email: 'john@gmail.com',
-     password: 'cookies',
-     entries: 0,
+     id: "",
+     email: "adrianjcorrea007@gmail.com",
+     firstname: "Jose",
+     lastname: "Adrian",
+     password: 'eva12',
      joined: new Date()
    },
    {
      id: '124',
-     name: 'Sally',
      email: 'sally@gmail.com',
+     firstname: 'Sally',
+     lastname: 'colin',
      password: 'bananas',
-     entries: 0,
      joined: new Date()
    }
  ]
 }
 
+app.use(bodyParser.json());
+app.use(cors());
+
 app.get('/', (req, res) => {
    res.send(database.users);
  })
 
-app.post('/signin', (req, res) => {
-  bcrypt.compare("apples", "$2a$10$fcdTs2CtPrvw7zmBXA0SWuciTv9w/D4nfzkI2Ge.MDrspFbFU.azy", function(err, res) {
-     console.log("first guess", res);
-  });
-  bcrypt.compare("veggies", "$2a$10$fcdTs2CtPrvw7zmBXA0SWuciTv9w/D4nfzkI2Ge.MDrspFbFU.azy", function(err, res) {
-      console.log("second guess", res);
-  });
-  if(req.body.email === database.users[0].email &&
-      req.body.password === database.users[0].password){
-       res.json('access');
-  } else {
-   res.status(400).json('error logging in');
- }
+ const token = jwt.sign({
+  id: "5c41046fb685d90021453d60",
+  email: "adrianjcorrea007@gmail.com",
+  firstname: "Jose",
+  lastname: "Adrian"
+
+} , 'secretkey');
+
+app.post('/logIn', (req, res) => {
+  //This function compares the hashed password firs param the origional password and second the hash
+  //bcrypt.compare("apples", "$2a$10$fcdTs2CtPrvw7zmBXA0SWuciTv9w/D4nfzkI2Ge.MDrspFbFU.azy", function(err, res) {
+  //   console.log("first guess", res);
+  //});
+  //bcrypt.compare("veggies", "$2a$10$fcdTs2CtPrvw7zmBXA0SWuciTv9w/D4nfzkI2Ge.MDrspFbFU.azy", function(err, res) {
+  //    console.log("second guess", res);
+  //});  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjVjNDEwNDZmYjY4NWQ5MDAyMTQ1M2Q2MCIsImVtYWlsIjoiYWRyaWFuamNvcnJlYTAwN0BnbWFpbC5jb20iLCJmaXJzdG5hbWUiOiJKb3NlIiwibGFzdG5hbWUiOiJBZHJpYW4iLCJpYXQiOjE1NDc3NzU2MjQsImV4cCI6MTU0OTA3MTYyNH0.M8GR2QLItmuQTkiyAax6waafUVE0jqurAIRpSsLt-0s" ;
+
+ if(req.body.email === database.users[0].email &&
+       req.body.password === database.users[0].password){
+        bcrypt.hash(req.body.password , null, null, function(err, hash) {
+          console.log('this is the hashed password',hash);
+        });
+          res.status(200).json({token});
+        console.log(token);
+   } else {
+    res.status(400).json('error logging in');
+  }
 })
 
-app.post('/register', (req, res) => {
-const { email, name, password } = req.body;
+//if(req.body.email === database.users[0].email &&
+//   req.body.password === database.users[0].password){
+//    res.status(200).json('success');
+//
+//} else {
+//res.status(400).json('error logging in');
+//}
 
-  bcrypt.hash(password , null, null, function(err, hash) {
-    console.log(hash);
-  });
+app.post('/register', (req, res) => {
+const { email, firstname, lastname, password } = req.body;
+//Hashing function so password will be hashed logs it to terminal.
+bcrypt.hash(password , null, null, function(err, hash) {
+  console.log(hash);
+});
   database.users.push({
     id: '125',
-    name: name,
     email: email,
-    password: password,
-    entries: 0,
-    joined: new Date()
-  })
+    firstname: firstname,
+    lastname: lastname,
+    password: password
+   })
  res.json(database.users[database.users.length - 1]);
 })
 
-app.get('/profile/:id', (req, res) => {
-  const {id} = req.params;
-  let found = false;
- database.users.forEach(user => {
-   if (user.id === id) {
-     found = true;
-   return res.json(user);
-   }
- })
- if (!found){
- res.status(400).json('no user');
- }
-})
+function verifyToken (req, res, next){
+  const bearerHeader = req.headers['authorization'];
+  //check if bearer is undefined
+  if(typeof bearerHeader !== 'undefined'){
+   const bearer = bearerHeader.split(' ');
+   const bearerToken = bearer[1];
+   req.token = bearerToken;
+   next();
+  }else{
+    res.sendStatus(403);
+  }
+}
 
-app.post('/image', (req, res) => {
-  const {id} = req.body;
-  let found = false;
- database.users.forEach(user => {
-   if (user.id === id) {
-     found = true;
-     user.entries++
-     return res.json(user.entries);
-   }
- })
- if (!found){
- res.status(400).json('no user');
- }
-})
+app.get('/accounts', verifyToken, (req, res) => {
+jwt.verify(req.token, 'secretkey', (err, authData) =>{
+  if(err){
+    res.sendStatus(403);
+  }else{
+    res.json({
+       response: [
+         'hello',
+         'Im ready',
 
-app.listen(8080, () =>{
-   console.log('Example app listening on port 8080!');
- })
+       ],
+       authData
+     });
+  }
+ });
+});
 
-//var cors = require('cors');
-//  var a = JSON.parse(req.body);
-//    res.send('signed in');
-//  if (a.username === database.users[0].email && a.password === database.secrets.hash) {
-//    res.send('signed in');
-//  }
-//
-//app.post('/findface', (req, res) => {
-//  database.users.forEach(user => {
-//    if (user.email === req.body.email) {
-//      user.entries++
-//      res.json(user)
-//    }
-//  });
-//  res.json('nope')
-//})
-//
-//
-//  secrets: {
-//    users_id: '123',
-//    hash: 'wghhh'
-//  }
-//
-//app.use(cors());
-//
+app.listen(8888, () =>{
+   console.log('Example app listening on port 8888!');
+ })
